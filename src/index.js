@@ -11,14 +11,14 @@ const client = new Client({
     ]
 })
 
-const cardNames = ["Ace", "Two"];
-const cardSuits = ["Hearts", "Diamonds"];
+const cardNames = ["Ace", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Jack", "Queen", "King"];
+const cardSuits = ["Hearts", "Diamonds", "Spades", "Clubs"];
 var dealerHand = [[]];
 var playerHands = [[[]]];
 const numPlayers = 1;
 
 client.on('ready', (c) => {
-    console.log("Black Jack is ready");
+    console.log("bot is ready");
 })
 
 client.on('messageCreate', (msg) => {
@@ -39,7 +39,60 @@ client.on('messageCreate', (msg) => {
             }
         }
         msg.reply(playerHands[0][0][0] + " of " + playerHands[0][0][1]);
+        msg.reply(playerHands[0][1][0] + " of " + playerHands[0][1][1]);
     }
 })
 
 client.login(process.env.TOKEN);
+
+function cardValue(c) {
+    switch(c) {
+        case 'Ace':
+            return 11;
+            break;
+        case 'Two':
+            return 2;
+            break;
+        case 'Three':
+            return 3;
+            break;
+        case 'Four':
+            return 4;
+            break;
+        case 'Five':
+            return 5;
+            break;
+        case 'Six':
+            return 6;
+            break;
+        case 'Seven':
+            return 7;
+            break;
+        case 'Eight':
+            return 8;
+            break;
+        case 'Nine':
+            return 9;
+            break;
+        case 'Ten':
+            return 10;
+            break;
+        case 'Jack':
+            return 10;
+            break;
+        case 'Queen':
+            return 10;
+            break;
+        case 'King':
+            return 10;
+            break;
+    }
+}
+
+/*
+list of implimentations:
+
+impliment multiple user server (includes talking to one user at a time)
+take bets and calculate results
+6 decks
+*/
