@@ -42,6 +42,11 @@ client.on('messageCreate', (msg) => {
         }
         playersEntered.splice(0, 1);
         numPlayers--;
+        for (var i = 0; i < numPlayers; i++) {
+            msg.reply(playersEntered[i] + " has the " + 
+            playerHands[i][0][0] + " of " + playerHands[i][0][1] + " and the " + 
+            playerHands[i][1][0] + " of " + playerHands[i][1][1]);
+        }
         msg.reply("No more bets will be taken! The game begins now! What would you like to do " + playersEntered[0] + "?");
     }
 
@@ -52,6 +57,22 @@ client.on('messageCreate', (msg) => {
         playersEntered.push(msg.author.globalName);
         bets.push(msg.content);
         numPlayers++;
+    }
+
+    if (msg.content === 'hit') {
+        playerHands[curPlayer].push([cardNames[Math.floor(Math.random() * 13)]], [cardSuits[Math.floor(Math.random() * 4)]]);
+        var sum = 0;
+        for (var i = 0; i < playerHands[curPlayer].length(); i++) {
+            sum += cardValue(playerHands[curPlayer][i][0]);
+        }
+        if (sum > 21) {
+            msg.reply("Opps! You busted. How unfortunate.");
+            dealerProfit += bets[curPlayer];
+            bets[curPlayer] = 0;
+            curPlayer++;
+        } else {
+            msg.reply("Still under 21! what would you like to do now?");
+        }
     }
 
     if (msg.content === 'stand') {
@@ -69,16 +90,6 @@ client.on('messageCreate', (msg) => {
             dealerHand.push([cardNames[Math.floor(Math.random() * 13)], cardSuits[Math.floor(Math.random() * 4)]]);
         }
         takingBets = true;
-        // for (var p = 0; p < numPlayers; p++) {
-        //     while(!playersStood[p]) {
-        //         msg.reply("You have the " + playerHands[p][0][0] + " of " + playerHands[p][0][1] + " and the "
-        //         + playerHands[p][1][0] + " of " + playerHands[p][1][1]);
-        //         msg.reply('would you like to stand?');
-        //         client.on('messageCreate', (msg) => {
-        //             if (msg === 'stand') playersStood[p] = true;
-        //         })
-        //     }
-        // }
     }
 })
 
@@ -131,6 +142,7 @@ function cardValue(c) {
 /*
 list of implimentations:
 
+print all players cards after bets are stopped - DONE
 impliment "hit" (if all cards added up is greater than 21 post-hit, bets[curPlayer] = 0 and goes to dealer)
 impliment double down
 if the dealer gets a blackjack, the hand should be over (and players with blackjack take up their bet)
