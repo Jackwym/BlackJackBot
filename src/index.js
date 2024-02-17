@@ -32,8 +32,8 @@ client.on('messageCreate', (msg) => {
     if (msg.content === 'stop taking bets' || msg.content === 'stop' || msg.content === 'done') {
         takingBets = false;
         activeHand = true;
-        playersEntered.splice(0, 1);
-        numPlayers--;
+        // playersEntered.splice(0, 1);
+        // numPlayers--;
         for (var i = 0; i < numPlayers; i++) {
             playerHands.push([[cardNames[Math.floor(Math.random() * 13)], cardSuits[Math.floor(Math.random() * 4)]], 
             [cardNames[Math.floor(Math.random() * 13)], cardSuits[Math.floor(Math.random() * 4)]]]);
@@ -52,6 +52,7 @@ client.on('messageCreate', (msg) => {
     }
 
     if (takingBets) {
+        if (msg.author.bot) return;
         for (var i = 0; i < numPlayers; i++) {
             if (msg.author.globalName === playersEntered[i]) return;
         }
@@ -72,6 +73,12 @@ client.on('messageCreate', (msg) => {
             dealerProfit += bets[curPlayer];
             bets[curPlayer] = 0;
             curPlayer++;
+            if (playersEntered[curPlayer] === playersEntered[curPlayer - 1]) {
+                msg.reply("What would you like to do with your second hand, " + playersEntered[0] + "?");
+            }
+            else {
+                msg.reply("What would you like to do, " + playersEntered[0] + "?");
+            }
             if (curPlayer == numPlayers) {
                 msg.reply("All players have gone! lets see how this game will end...");
                 return;
@@ -99,13 +106,24 @@ client.on('messageCreate', (msg) => {
             msg.reply("It's too late to split! What would you like to do?");
             return;
         }
-        if (playerHands[curPlayer][0][0] === playerHands[curPlayer][1][0]) {
+        if (playerHands[curPlayer][0][0] !== playerHands[curPlayer][1][0]) {
             msg.reply("You need the same denomination of cards to split. What would you like to do?");
             console.log(playerHands[curPlayer][0][0]);
             console.log(playerHands[curPlayer][1][0]);
             return;
         }
+        numPlayers++;
+        var newBet = bets[curPlayer]; // new bet had to be made to point to a different space in memory
+        bets.splice(curPlayer, 0, newBet);
+        playersEntered.splice(curPlayer, 0, playersEntered[curPlayer]);
 
+        var newHand = [playerHands[curPlayer][0], playerHands[curPlayer][1]]; // new hand had to be made to point to a different space in memory
+        playerHands.splice(curPlayer, 0, newHand);
+
+        playerHands[curPlayer].pop();
+        playerHands[curPlayer + 1].shift();
+
+        msg.reply("You're cards are now split, what would you like to do now " + playersEntered[curPlayer] + "?");
     }
 
     if (msg.content === 'start game' || msg.content === 'start' || msg.content === 'run') {
