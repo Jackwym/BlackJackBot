@@ -11,11 +11,20 @@ const client = new Client({
     ]
 })
 
+const numDecks = 6;
+const decks = [];
 const cardNames = ["Ace", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Jack", "Queen", "King"];
 const cardSuits = ["Hearts", "Diamonds", "Spades", "Clubs"];
+for (var i = 0; i < numDecks; i++) {
+    for (var j = 0; j < 13; j++) {
+        for (var k = 0; k < 4; k++) {
+            decks.push(cardNames[j] + " of " + cardSuits[k]);
+        }
+    }
+}
 var dealerHand = []; // [card number][card descriptor]
 var numPlayers = 0;
-var playerHands = []; // [player number][card pair][card denomination]
+var playerHands = []; // [player number][card pair]
 const playersStood = [];
 const playersEntered = [];
 const playersDoubledDown = [];
@@ -30,14 +39,20 @@ client.on('ready', (c) => {
 })
 
 client.on('messageCreate', (msg) => {
+    // start hand
     if (msg.content === 'stop taking bets' || msg.content === 'stop' || msg.content === 'done') {
         takingBets = false;
         activeHand = true;
         for (var i = 0; i < numPlayers; i++) {
-            playerHands.push([[cardNames[Math.floor(Math.random() * 13)], cardSuits[Math.floor(Math.random() * 4)]], 
-            [cardNames[Math.floor(Math.random() * 13)], cardSuits[Math.floor(Math.random() * 4)]]]);
-            console.log(playerHands[i][0][0] + playerHands[i][0][1] + playerHands[i][1][0] + playerHands[i][1][1]);
-        
+            var card1Pos = [Math.floor(Math.random() * decks.length)];
+            var card2Pos = [Math.floor(Math.random() * decks.length)];
+            while (card2Pos === card1Pos) {
+                card2Pos = [Math.floor(Math.random() * decks.length)];
+            }
+            playerHands.push([decks[card1Pos], decks[card2Pos]]);
+            decks.splice(card1Pos, 1);
+            if (card1Pos > card2Pos) decks.splice(card2Pos, 1);
+            else decks.splice(card2Pos - 1, 1);
         }
         for (var i = 0; i < numPlayers; i++) {
             playersStood.push(false);
@@ -46,13 +61,13 @@ client.on('messageCreate', (msg) => {
             playersDoubledDown.push(false);
         }
         for (var i = 0; i < numPlayers; i++) {
-            msg.reply(playersEntered[i] + " has the " + 
-            playerHands[i][0][0] + " of " + playerHands[i][0][1] + " and the " + 
-            playerHands[i][1][0] + " of " + playerHands[i][1][1]);
+            msg.reply(playersEntered[i] + " has the " + playerHands[i][0] + " and the " + playerHands[i][1]);
         }
+        // print dealers card here
         msg.reply("No more bets will be taken! The game begins now! What would you like to do " + playersEntered[0] + "?");
     }
 
+    // handle bets (bug -> should check for integers only)
     if (takingBets) {
         if (msg.author.bot) return;
         for (var i = 0; i < numPlayers; i++) {
@@ -63,12 +78,15 @@ client.on('messageCreate', (msg) => {
         numPlayers++;
     }
 
+    // player gets another card / checks for a bust
     if (msg.content === 'hit') {
         if (!activeHand) return;
-        playerHands[curPlayer].push([cardNames[Math.floor(Math.random() * 13)], cardSuits[Math.floor(Math.random() * 4)]]);
+        var cardPos = [Math.floor(Math.random() * decks.length)];
+        playerHands[curPlayer].push(decks[cardPos]);
+        decks.splice(cardPos, 1);
         var sum = 0;
         for (var i = 0; i < playerHands[curPlayer].length; i++) {
-            sum += cardValue(playerHands[curPlayer][i][0], true);
+            sum += cardValue(playerHands[curPlayer][i].substring(0, playerHands[curPlayer][i].indexOf(" ")), true)
         }
         console.log(sum);
         if (sum > 21) {
@@ -76,45 +94,46 @@ client.on('messageCreate', (msg) => {
             dealerProfit += bets[curPlayer];
             bets[curPlayer] = 0;
             curPlayer++;
+            if (curPlayer == numPlayers) {
+                msg.reply("All players have gone! lets see how this game will end...");
+                activeHand = false;
+                return;
+            }
             if (playersEntered[curPlayer] === playersEntered[curPlayer - 1]) {
                 msg.reply("What would you like to do with your second hand, " + playersEntered[0] + "?");
             }
             else {
                 msg.reply("What would you like to do, " + playersEntered[0] + "?");
             }
-            if (curPlayer == numPlayers) {
-                msg.reply("All players have gone! lets see how this game will end...");
-                return;
-            }
         } else if (sum < 21){
-            msg.reply("You drew the " + playerHands[curPlayer][playerHands[curPlayer].length - 1][0] + " of " 
-            + playerHands[curPlayer][playerHands[curPlayer].length - 1][1] + " and still under 21! what would you like to do now?");
+            msg.reply("You drew the " + playerHands[curPlayer][playerHands[curPlayer].length - 1] + " and still under 21! What would you like to do now?");
         } else {
-            msg.reply("You drew the " + playerHands[curPlayer][playerHands[curPlayer].length - 1][0] + " of " 
-            + playerHands[curPlayer][playerHands[curPlayer].length - 1][1] + " and are at 21! what would you like to do now?");
+            msg.reply("You drew the " + playerHands[curPlayer][playerHands[curPlayer].length - 1] + " and are at 21! What would you like to do now?");
         }
     }
 
+    // hand moves to the next player
     if (msg.content === 'stand') {
         if (!activeHand) return;
         curPlayer++;
         if (curPlayer == numPlayers) {
             msg.reply("All players have gone! lets see how this game will end...");
+            activeHand = false;
             return;
         }
         msg.reply("All right, onto the next player! What would you like to do " + playersEntered[curPlayer] + "?");
     }
 
+    // player creates a new hand / new player added (as themselves)
     if (msg.content === 'split') {
         if (!activeHand) return;
         if (playerHands[curPlayer].length !== 2) {
             msg.reply("It's too late to split! What would you like to do?");
             return;
         }
-        if (playerHands[curPlayer][0][0] !== playerHands[curPlayer][1][0]) {
+        if (playerHands[curPlayer][0].substring(0, playerHands[curPlayer][0].indexOf(" ")) !== 
+            playerHands[curPlayer][1].substring(0, playerHands[curPlayer][1].indexOf(" ")) ) {
             msg.reply("You need the same denomination of cards to split. What would you like to do?");
-            console.log(playerHands[curPlayer][0][0]);
-            console.log(playerHands[curPlayer][1][0]);
             return;
         }
         numPlayers++;
@@ -122,37 +141,53 @@ client.on('messageCreate', (msg) => {
         bets.splice(curPlayer, 0, newBet);
         playersEntered.splice(curPlayer, 0, playersEntered[curPlayer]);
 
-        var newHand = [playerHands[curPlayer][0], playerHands[curPlayer][1]]; // new hand had to be made to point to a different space in memory
-        playerHands.splice(curPlayer, 0, newHand);
-
+        var newHand = [playerHands[curPlayer][1]]; // new hand had to be made to point to a different space in memory
+        playerHands.splice(curPlayer + 1, 0, newHand);
         playerHands[curPlayer].pop();
-        playerHands[curPlayer + 1].shift();
 
         msg.reply("You're cards are now split, what would you like to do now " + playersEntered[curPlayer] + "?");
     }
 
+    // player draws one card / is revealed and handled at the end of the game
     if (msg.content === 'double down') {
         if (!activeHand) return;
         if (playerHands[curPlayer].length !== 2) {
             msg.reply("It's too late to double down! What would you like to do?");
             return;
         }
-        if (cardValue(playerHands[curPlayer][0][0], true) + cardValue(playerHands[curPlayer][1][0]) < 9 ||
-        cardValue(playerHands[curPlayer][0][0], true) + cardValue(playerHands[curPlayer][1][0]) > 11) {
+        var value = cardValue(playerHands[curPlayer][0].substring(0, playerHands[curPlayer][0].indexOf(" ")), true) + 
+        cardValue(playerHands[curPlayer][1].substring(0, playerHands[curPlayer][1].indexOf(" ")), true);
+        if (value > 11 || value < 9) {
             msg.reply("You need a sum of 9, 10, or 11 to double down. What would you like to do?");
             return;
         }
-        playerHands[curPlayer].push([cardNames[Math.floor(Math.random() * 13)], cardSuits[Math.floor(Math.random() * 4)]]);
+        var cardPos = [Math.floor(Math.random() * decks.length)];
+        playerHands[curPlayer].push(decks[cardPos]);
+        decks.splice(cardPos, 1);
         playersDoubledDown[curPlayer] = true;
         curPlayer++;
+        console.log(playerHands[curPlayer]);
+        if (curPlayer == numPlayers) {
+            msg.reply("All players have gone! lets see how this game will end...");
+            activeHand = false;
+            return;
+        }
     }
 
+    // start bet taking
     if (msg.content === 'start game' || msg.content === 'start' || msg.content === 'run') {
         msg.reply('Ready for a game of Blackjack? Taking bets now!');
         for (var i = 0; i < 2; i++) {
-            dealerHand.push([cardNames[Math.floor(Math.random() * 13)], cardSuits[Math.floor(Math.random() * 4)]]);
+            var cardPos = [Math.floor(Math.random() * decks.length)];
+            dealerHand.push(decks[cardPos]);
+            decks.splice(cardPos, 1);
         }
         takingBets = true;
+    }
+
+    // dealer turn
+    if (!activeHand && curPlayer !== 0) {
+
     }
 })
 
@@ -214,7 +249,7 @@ if the dealer gets a blackjack, the hand should be over (and players with blackj
 impliment dealers turn
 impliment naturals
 impliment dealer-ace rule (insurance)
-6 decks
+6 decks -> whenever a card is added, check in all players hands to see if it occurs 6 times (if it does, pick another card)
 */
 
 /*
