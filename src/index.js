@@ -29,8 +29,11 @@ const playersStood = [];
 const playersEntered = [];
 const playersDoubledDown = [];
 const bets = [];
+const playersInsured = [];
+const insuranceBets = [];
 var takingBets = false;
 var activeHand = false;
+var insurance = false;
 var curPlayer = 0;
 var dealerProfit = 50;
 
@@ -41,8 +44,8 @@ client.on('ready', (c) => {
 client.on('messageCreate', (msg) => {
     // start hand
     if (msg.content === 'stop taking bets' || msg.content === 'stop' || msg.content === 'done') {
+        if (activeHand) return;
         takingBets = false;
-        activeHand = true;
         for (var i = 0; i < numPlayers; i++) {
             var card1Pos = [Math.floor(Math.random() * decks.length)];
             var card2Pos = [Math.floor(Math.random() * decks.length)];
@@ -63,8 +66,31 @@ client.on('messageCreate', (msg) => {
         for (var i = 0; i < numPlayers; i++) {
             msg.reply(playersEntered[i] + " has the " + playerHands[i][0] + " and the " + playerHands[i][1]);
         }
-        // print dealers card here
+        msg.reply("And I've got the " + dealerHand[0]);
+        if (dealerHand[0].substring(0, dealerHand[0].indexOf(" ")) === 'Ace') {
+            insurance = true;
+            msg.reply("Would anybody like to bet on insurance?");
+            return;
+        }
+        activeHand = true;
         msg.reply("No more bets will be taken! The game begins now! What would you like to do " + playersEntered[0] + "?");
+    }
+
+    // insurance stopping
+    if (msg.content === 'no' || msg.content === 'stop taking insurance') {
+        if (activeHand) return;
+        activeHand = true;
+        msg.reply("No more bets will be taken! The game begins now! What would you like to do " + playersEntered[0] + "?");
+    }
+
+    // insurance bet (bug -> should check for integers only)
+    if (insurance) {
+        if (msg.author.bot) return;
+        for (var i = 0; i < numPlayers; i++) {
+            if (msg.author.globalName === playersEntered[i]) return;
+        }
+        playersInsured.push(msg.author.globalName);
+        insuranceBets.push(msg.content);
     }
 
     // handle bets (bug -> should check for integers only)
@@ -249,7 +275,7 @@ if the dealer gets a blackjack, the hand should be over (and players with blackj
 impliment dealers turn
 impliment naturals
 impliment dealer-ace rule (insurance)
-6 decks -> whenever a card is added, check in all players hands to see if it occurs 6 times (if it does, pick another card)
+6 decks - DONE
 */
 
 /*
