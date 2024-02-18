@@ -18,6 +18,7 @@ var numPlayers = 0;
 var playerHands = []; // [player number][card pair][card denomination]
 const playersStood = [];
 const playersEntered = [];
+const playersDoubledDown = [];
 const bets = [];
 var takingBets = false;
 var activeHand = false;
@@ -32,8 +33,6 @@ client.on('messageCreate', (msg) => {
     if (msg.content === 'stop taking bets' || msg.content === 'stop' || msg.content === 'done') {
         takingBets = false;
         activeHand = true;
-        // playersEntered.splice(0, 1);
-        // numPlayers--;
         for (var i = 0; i < numPlayers; i++) {
             playerHands.push([[cardNames[Math.floor(Math.random() * 13)], cardSuits[Math.floor(Math.random() * 4)]], 
             [cardNames[Math.floor(Math.random() * 13)], cardSuits[Math.floor(Math.random() * 4)]]]);
@@ -42,6 +41,9 @@ client.on('messageCreate', (msg) => {
         }
         for (var i = 0; i < numPlayers; i++) {
             playersStood.push(false);
+        }
+        for (var i = 0; i < numPlayers; i++) {
+            playersDoubledDown.push(false);
         }
         for (var i = 0; i < numPlayers; i++) {
             msg.reply(playersEntered[i] + " has the " + 
@@ -62,6 +64,7 @@ client.on('messageCreate', (msg) => {
     }
 
     if (msg.content === 'hit') {
+        if (!activeHand) return;
         playerHands[curPlayer].push([cardNames[Math.floor(Math.random() * 13)], cardSuits[Math.floor(Math.random() * 4)]]);
         var sum = 0;
         for (var i = 0; i < playerHands[curPlayer].length; i++) {
@@ -93,6 +96,7 @@ client.on('messageCreate', (msg) => {
     }
 
     if (msg.content === 'stand') {
+        if (!activeHand) return;
         curPlayer++;
         if (curPlayer == numPlayers) {
             msg.reply("All players have gone! lets see how this game will end...");
@@ -102,6 +106,7 @@ client.on('messageCreate', (msg) => {
     }
 
     if (msg.content === 'split') {
+        if (!activeHand) return;
         if (playerHands[curPlayer].length !== 2) {
             msg.reply("It's too late to split! What would you like to do?");
             return;
@@ -124,6 +129,22 @@ client.on('messageCreate', (msg) => {
         playerHands[curPlayer + 1].shift();
 
         msg.reply("You're cards are now split, what would you like to do now " + playersEntered[curPlayer] + "?");
+    }
+
+    if (msg.content === 'double down') {
+        if (!activeHand) return;
+        if (playerHands[curPlayer].length !== 2) {
+            msg.reply("It's too late to double down! What would you like to do?");
+            return;
+        }
+        if (cardValue(playerHands[curPlayer][0][0], true) + cardValue(playerHands[curPlayer][1][0]) < 9 ||
+        cardValue(playerHands[curPlayer][0][0], true) + cardValue(playerHands[curPlayer][1][0]) > 11) {
+            msg.reply("You need a sum of 9, 10, or 11 to double down. What would you like to do?");
+            return;
+        }
+        playerHands[curPlayer].push([cardNames[Math.floor(Math.random() * 13)], cardSuits[Math.floor(Math.random() * 4)]]);
+        playersDoubledDown[curPlayer] = true;
+        curPlayer++;
     }
 
     if (msg.content === 'start game' || msg.content === 'start' || msg.content === 'run') {
@@ -187,8 +208,10 @@ list of implimentations:
 
 print all players cards after bets are stopped - DONE
 impliment "hit" (if all cards added up is greater than 21 post-hit, bets[curPlayer] = 0 and goes to dealer) - DONE
-impliment double down
+impliment "split" - DONE
+impliment double down - DONE
 if the dealer gets a blackjack, the hand should be over (and players with blackjack take up their bet)
+impliment dealers turn
 impliment naturals
 impliment dealer-ace rule (insurance)
 6 decks
