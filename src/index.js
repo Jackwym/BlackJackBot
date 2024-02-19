@@ -36,6 +36,7 @@ var activeHand = false;
 var insurance = false;
 var curPlayer = 0;
 var dealerProfit = 50;
+var dealersTurn = false;
 
 client.on('ready', (c) => {
     console.log("Blackjack is running...");
@@ -80,6 +81,27 @@ client.on('messageCreate', (msg) => {
     if (msg.content === 'no' || msg.content === 'stop taking insurance') {
         if (activeHand) return;
         activeHand = true;
+        var sum = 0; 
+        sum += cardValue(dealerHand[0].substring(0, dealerHand[0].indexOf(" ")), false);
+        sum += cardValue(dealerHand[0].substring(0, dealerHand[1].indexOf(" ")), false);
+        if (sum === 21) {
+            msg.reply("Well I've got a Blackjack! ");
+            for (var i = 0; i < insuranceBets.length; i++) {
+                bets[i] -= (2 * insuranceBets[i]);
+            }
+            for (var i = 0; i < bets.length; i++) {
+                if (checkSum(i, false) === 21) {
+                    msg.reply("Looks like " + playersEntered[i] + " also had a natural. Lucky you!")
+                    continue;
+                }
+                dealerProfit += bets[i];
+                bets[i] = 0;
+            }
+            msg.reply("Unfortunately for you all, I made $" + dealerProfit + "!");
+            activeHand = false;
+            return;
+
+        }
         msg.reply("No more bets will be taken! The game begins now! What would you like to do " + playersEntered[0] + "?");
     }
 
@@ -110,11 +132,7 @@ client.on('messageCreate', (msg) => {
         var cardPos = [Math.floor(Math.random() * decks.length)];
         playerHands[curPlayer].push(decks[cardPos]);
         decks.splice(cardPos, 1);
-        var sum = 0;
-        for (var i = 0; i < playerHands[curPlayer].length; i++) {
-            sum += cardValue(playerHands[curPlayer][i].substring(0, playerHands[curPlayer][i].indexOf(" ")), true)
-        }
-        console.log(sum);
+        var sum = returnSum(curPlayer, true)
         if (sum > 21) {
             msg.reply("Oops! You busted. How unfortunate.");
             dealerProfit += bets[curPlayer];
@@ -123,6 +141,7 @@ client.on('messageCreate', (msg) => {
             if (curPlayer == numPlayers) {
                 msg.reply("All players have gone! lets see how this game will end...");
                 activeHand = false;
+                dealersTurn = true;
                 return;
             }
             if (playersEntered[curPlayer] === playersEntered[curPlayer - 1]) {
@@ -145,6 +164,7 @@ client.on('messageCreate', (msg) => {
         if (curPlayer == numPlayers) {
             msg.reply("All players have gone! lets see how this game will end...");
             activeHand = false;
+            dealersTurn = true;
             return;
         }
         msg.reply("All right, onto the next player! What would you like to do " + playersEntered[curPlayer] + "?");
@@ -196,6 +216,7 @@ client.on('messageCreate', (msg) => {
         if (curPlayer == numPlayers) {
             msg.reply("All players have gone! lets see how this game will end...");
             activeHand = false;
+            dealersTurn = true;
             return;
         }
     }
@@ -212,12 +233,37 @@ client.on('messageCreate', (msg) => {
     }
 
     // dealer turn
-    if (!activeHand && curPlayer !== 0) {
-
+    if (dealersTurn) {
+        var sum = 0; 
+        sum += cardValue(dealerHand[0].substring(0, dealerHand[0].indexOf(" ")), false);
+        sum += cardValue(dealerHand[1].substring(0, dealerHand[1].indexOf(" ")), false);
+        while (sum < 17) {
+            var cardPos = [Math.floor(Math.random() * decks.length)];
+            dealerHand.push(decks[cardPos]);
+            msg.reply("I drew the " + decks[cardPos]);
+            decks.splice(cardPos, 1);
+        }
+        if (sum > 21) {
+            // busted or has ace (which should be made soft)
+            msg.reply("Dang, looks like I busted. You win");
+            activeHand = false;
+        }
+        else {
+            msg.reply("I'm staying with my " + sum);
+        }
+        dealersTurn = false;
     }
 })
 
 client.login(process.env.TOKEN);
+
+function returnSum(player, soft) {
+    var sum = 0; 
+    for (var i = 0; i < playerHands[player].length; i++) {
+        sum += cardValue(playerHands[player][i].substring(0, playerHands[player][i].indexOf(" ")), soft);
+    }
+    return sum;
+}
 
 function cardValue(c, soft) {
     if (soft && c === 'Ace') return 1;
@@ -272,10 +318,11 @@ impliment "hit" (if all cards added up is greater than 21 post-hit, bets[curPlay
 impliment "split" - DONE
 impliment double down - DONE
 if the dealer gets a blackjack, the hand should be over (and players with blackjack take up their bet)
-impliment dealers turn
+impliment dealers turn - DONE
 impliment naturals
-impliment dealer-ace rule (insurance)
+impliment dealer-ace rule (insurance) - DONE
 6 decks - DONE
+allow for multiple hands without re-activating dealer
 */
 
 /*
