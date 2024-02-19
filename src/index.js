@@ -25,14 +25,15 @@ for (var i = 0; i < numDecks; i++) {
 var dealerHand = []; // [card number][card descriptor]
 var numPlayers = 0;
 var playerHands = []; // [player number][card pair]
-const playersStood = [];
-const playersEntered = [];
-const playersDoubledDown = [];
-const bets = [];
-const playersInsured = [];
-const insuranceBets = [];
+let playersStood = [];
+let playersEntered = [];
+let playersDoubledDown = [];
+let bets = [];
+let playersInsured = [];
+let insuranceBets = [];
 var takingBets = false;
 var activeHand = false;
+var activeGame = true;
 var insurance = false;
 var curPlayer = 0;
 var dealerProfit = 50;
@@ -46,7 +47,14 @@ client.on('messageCreate', (msg) => {
     // start hand
     if (msg.content === 'stop taking bets' || msg.content === 'stop' || msg.content === 'done') {
         if (activeHand) return;
-        takingBets = false;
+        // global reset (wipe old game information for new game)
+        
+        // setting up hands
+        for (var i = 0; i < 2; i++) {
+            var cardPos = [Math.floor(Math.random() * decks.length)];
+            dealerHand.push(decks[cardPos]);
+            decks.splice(cardPos, 1);
+        }
         for (var i = 0; i < numPlayers; i++) {
             var card1Pos = [Math.floor(Math.random() * decks.length)];
             var card2Pos = [Math.floor(Math.random() * decks.length)];
@@ -58,12 +66,8 @@ client.on('messageCreate', (msg) => {
             if (card1Pos > card2Pos) decks.splice(card2Pos, 1);
             else decks.splice(card2Pos - 1, 1);
         }
-        for (var i = 0; i < numPlayers; i++) {
-            playersStood.push(false);
-        }
-        for (var i = 0; i < numPlayers; i++) {
-            playersDoubledDown.push(false);
-        }
+        for (var i = 0; i < numPlayers; i++) playersStood.push(false);
+        for (var i = 0; i < numPlayers; i++) playersDoubledDown.push(false);
         for (var i = 0; i < numPlayers; i++) {
             msg.reply(playersEntered[i] + " has the " + playerHands[i][0] + " and the " + playerHands[i][1]);
         }
@@ -74,14 +78,45 @@ client.on('messageCreate', (msg) => {
             return;
         }
         activeHand = true;
+        // possible dealer natural
+        if (cardValue(dealerHand[0], false) === 11 || cardValue(dealerHand[0], false) === 10) {
+            for (var i = 0; i < numPlayers; i++) {
+                if (returnSum(i, false) === 21) {
+                    msg.reply("Looks like " + playersEntered[i] + " has a Blackjack, so I'll go ahead and reveal my " + dealerHand[1]);
+                    break;
+                }
+            }
+            // both natural
+            if (returnDealerSum(false) === 21) {
+                for (var i = 0; i < numPlayers; i++) {
+                    if (returnSum(i, false) === 21) {
+                        msg.reply("You can take your money back, seeing as we both have Blackjacks. What are the odds!");
+                    }
+                    else {
+                        msg.reply("Thanks for the " + bets[i] + " bucks " + playersEntered[i] + "!")
+                        dealerProfit += bets[i];
+                        bets[i] = 0;
+                    }
+                }
+            }
+            // player only natural
+            else {
+                for (var i = 0; i < numPlayers; i++) {
+                    if (returnSum(curPlayer, false) === 21) {
+                        msg.reply("Looks like " + playersEntered[i] + " just won big!");
+                        bets[i] *= 1.5;
+                    }
+                }
+            }
+        }
         msg.reply("No more bets will be taken! The game begins now! What would you like to do " + playersEntered[0] + "?");
     }
 
     // insurance stopping
-    if (msg.content === 'no' || msg.content === 'stop taking insurance') {
+    if ((msg.content === 'no' || msg.content === 'stop taking insurance') && insurance) {
         if (activeHand) return;
         activeHand = true;
-        var sum = 0; 
+        var sum = 0;
         sum += cardValue(dealerHand[0].substring(0, dealerHand[0].indexOf(" ")), false);
         sum += cardValue(dealerHand[0].substring(0, dealerHand[1].indexOf(" ")), false);
         if (sum === 21) {
@@ -102,7 +137,7 @@ client.on('messageCreate', (msg) => {
             return;
 
         }
-        msg.reply("No more bets will be taken! The game begins now! What would you like to do " + playersEntered[0] + "?");
+        msg.reply("Well, I did'nt have a Blackjack. No more bets will be taken! The game begins now! What would you like to do " + playersEntered[0] + "?");
     }
 
     // insurance bet (bug -> should check for integers only)
@@ -138,6 +173,7 @@ client.on('messageCreate', (msg) => {
             dealerProfit += bets[curPlayer];
             bets[curPlayer] = 0;
             curPlayer++;
+            while (returnSum(curPlayer, false) === 21) curPlayer++;
             if (curPlayer == numPlayers) {
                 msg.reply("All players have gone! lets see how this game will end...");
                 activeHand = false;
@@ -161,6 +197,7 @@ client.on('messageCreate', (msg) => {
     if (msg.content === 'stand') {
         if (!activeHand) return;
         curPlayer++;
+        while (returnSum(curPlayer, false) === 21) curPlayer++;
         if (curPlayer == numPlayers) {
             msg.reply("All players have gone! lets see how this game will end...");
             activeHand = false;
@@ -212,7 +249,7 @@ client.on('messageCreate', (msg) => {
         decks.splice(cardPos, 1);
         playersDoubledDown[curPlayer] = true;
         curPlayer++;
-        console.log(playerHands[curPlayer]);
+        while (returnSum(curPlayer, false) === 21) curPlayer++;
         if (curPlayer == numPlayers) {
             msg.reply("All players have gone! lets see how this game will end...");
             activeHand = false;
@@ -224,19 +261,12 @@ client.on('messageCreate', (msg) => {
     // start bet taking
     if (msg.content === 'start game' || msg.content === 'start' || msg.content === 'run') {
         msg.reply('Ready for a game of Blackjack? Taking bets now!');
-        for (var i = 0; i < 2; i++) {
-            var cardPos = [Math.floor(Math.random() * decks.length)];
-            dealerHand.push(decks[cardPos]);
-            decks.splice(cardPos, 1);
-        }
         takingBets = true;
     }
 
     // dealer turn
     if (dealersTurn) {
-        var sum = 0; 
-        sum += cardValue(dealerHand[0].substring(0, dealerHand[0].indexOf(" ")), false);
-        sum += cardValue(dealerHand[1].substring(0, dealerHand[1].indexOf(" ")), false);
+        var sum = returnDealerSum(false);
         while (sum < 17) {
             var cardPos = [Math.floor(Math.random() * decks.length)];
             dealerHand.push(decks[cardPos]);
@@ -253,10 +283,24 @@ client.on('messageCreate', (msg) => {
             msg.reply("I'm staying with my " + sum);
         }
         dealersTurn = false;
+        activeGame = false;
+    }
+
+    if (!activeGame) {
+        console.log("closing game remarks");
+        // closing remarks (bets, dealers profit, double down results, etc.)
     }
 })
 
 client.login(process.env.TOKEN);
+
+function returnDealerSum(soft) {
+    var sum = 0; 
+    for (var i = 0; i < dealerHand.length; i++) {
+        sum += cardValue(dealerHand[i].substring(0, dealerHand[i].indexOf(" ")), soft);
+    }
+    return sum;
+}
 
 function returnSum(player, soft) {
     var sum = 0; 
@@ -324,6 +368,8 @@ impliment naturals
 impliment dealer-ace rule (insurance) - DONE
 6 decks - DONE
 allow for multiple hands without re-activating dealer
+fix dealers soft hand bug
+fix bug occuring if all players have naturals (should skip their turn and go to the dealer)
 */
 
 /*
