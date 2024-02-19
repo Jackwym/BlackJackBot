@@ -242,6 +242,7 @@ client.on('messageCreate', (msg) => {
             dealerHand.push(decks[cardPos]);
             msg.reply("I drew the " + decks[cardPos]);
             decks.splice(cardPos, 1);
+            sum += cardValue(dealerHand[dealerHand.length - 1].substring(0, dealerHand[dealerHand.length - 1].indexOf(" ")), false);
         }
         if (sum > 21) {
             // busted or has ace (which should be made soft)
