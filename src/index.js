@@ -44,6 +44,7 @@ client.on('ready', (c) => {
 })
 
 client.on('messageCreate', (msg) => {
+    console.log("pre-stop");
     // start hand
     if (msg.content === 'stop taking bets' || msg.content === 'stop' || msg.content === 'done') {
         if (activeHand) return;
@@ -78,6 +79,7 @@ client.on('messageCreate', (msg) => {
             return;
         }
         activeHand = true;
+        takingBets = false;
         // possible dealer natural
         if (cardValue(dealerHand[0], false) === 11 || cardValue(dealerHand[0], false) === 10) {
             for (var i = 0; i < numPlayers; i++) {
@@ -86,7 +88,7 @@ client.on('messageCreate', (msg) => {
                     break;
                 }
             }
-            // both natural
+            // dealer natural
             if (returnDealerSum(false) === 21) {
                 for (var i = 0; i < numPlayers; i++) {
                     if (returnSum(i, false) === 21) {
@@ -111,11 +113,12 @@ client.on('messageCreate', (msg) => {
         }
         msg.reply("No more bets will be taken! The game begins now! What would you like to do " + playersEntered[0] + "?");
     }
-
+    console.log("pre-stop insurance");
     // insurance stopping
     if ((msg.content === 'no' || msg.content === 'stop taking insurance') && insurance) {
         if (activeHand) return;
         activeHand = true;
+        insurance = false;
         var sum = 0;
         sum += cardValue(dealerHand[0].substring(0, dealerHand[0].indexOf(" ")), false);
         sum += cardValue(dealerHand[0].substring(0, dealerHand[1].indexOf(" ")), false);
@@ -135,11 +138,10 @@ client.on('messageCreate', (msg) => {
             msg.reply("Unfortunately for you all, I made $" + dealerProfit + "!");
             activeHand = false;
             return;
-
         }
         msg.reply("Well, I did'nt have a Blackjack. No more bets will be taken! The game begins now! What would you like to do " + playersEntered[0] + "?");
     }
-
+    console.log("pre-insurance");
     // insurance bet (bug -> should check for integers only)
     if (insurance) {
         if (msg.author.bot) return;
@@ -149,7 +151,7 @@ client.on('messageCreate', (msg) => {
         playersInsured.push(msg.author.globalName);
         insuranceBets.push(msg.content);
     }
-
+    console.log("pre-bets");
     // handle bets (bug -> should check for integers only)
     if (takingBets) {
         if (msg.author.bot) return;
@@ -160,26 +162,26 @@ client.on('messageCreate', (msg) => {
         bets.push(msg.content);
         numPlayers++;
     }
-
+    console.log("pre-hit");
     // player gets another card / checks for a bust
     if (msg.content === 'hit') {
         if (!activeHand) return;
         var cardPos = [Math.floor(Math.random() * decks.length)];
         playerHands[curPlayer].push(decks[cardPos]);
         decks.splice(cardPos, 1);
-        var sum = returnSum(curPlayer, true)
+        var sum = returnSum(curPlayer, true);
         if (sum > 21) {
             msg.reply("Oops! You busted. How unfortunate.");
             dealerProfit += bets[curPlayer];
             bets[curPlayer] = 0;
             curPlayer++;
-            while (returnSum(curPlayer, false) === 21) curPlayer++;
             if (curPlayer == numPlayers) {
                 msg.reply("All players have gone! lets see how this game will end...");
                 activeHand = false;
                 dealersTurn = true;
                 return;
             }
+            while (returnSum(curPlayer, false) === 21) curPlayer++;
             if (playersEntered[curPlayer] === playersEntered[curPlayer - 1]) {
                 msg.reply("What would you like to do with your second hand, " + playersEntered[0] + "?");
             }
@@ -192,21 +194,21 @@ client.on('messageCreate', (msg) => {
             msg.reply("You drew the " + playerHands[curPlayer][playerHands[curPlayer].length - 1] + " and are at 21! What would you like to do now?");
         }
     }
-
+    console.log("pre-stand");
     // hand moves to the next player
     if (msg.content === 'stand') {
         if (!activeHand) return;
         curPlayer++;
-        while (returnSum(curPlayer, false) === 21) curPlayer++;
         if (curPlayer == numPlayers) {
             msg.reply("All players have gone! lets see how this game will end...");
             activeHand = false;
             dealersTurn = true;
             return;
         }
+        while (returnSum(curPlayer, false) === 21) curPlayer++;
         msg.reply("All right, onto the next player! What would you like to do " + playersEntered[curPlayer] + "?");
     }
-
+    console.log("pre-split");
     // player creates a new hand / new player added (as themselves)
     if (msg.content === 'split') {
         if (!activeHand) return;
@@ -230,7 +232,7 @@ client.on('messageCreate', (msg) => {
 
         msg.reply("You're cards are now split, what would you like to do now " + playersEntered[curPlayer] + "?");
     }
-
+    console.log("pre-double down");
     // player draws one card / is revealed and handled at the end of the game
     if (msg.content === 'double down') {
         if (!activeHand) return;
@@ -249,21 +251,21 @@ client.on('messageCreate', (msg) => {
         decks.splice(cardPos, 1);
         playersDoubledDown[curPlayer] = true;
         curPlayer++;
-        while (returnSum(curPlayer, false) === 21) curPlayer++;
         if (curPlayer == numPlayers) {
             msg.reply("All players have gone! lets see how this game will end...");
             activeHand = false;
             dealersTurn = true;
             return;
         }
+        while (returnSum(curPlayer, false) === 21) curPlayer++;
     }
-
+    console.log("pre-start game");
     // start bet taking
     if (msg.content === 'start game' || msg.content === 'start' || msg.content === 'run') {
         msg.reply('Ready for a game of Blackjack? Taking bets now!');
         takingBets = true;
     }
-
+    console.log("pre-dealer turn");
     // dealer turn
     if (dealersTurn) {
         var sum = returnDealerSum(false);
@@ -290,6 +292,7 @@ client.on('messageCreate', (msg) => {
         console.log("closing game remarks");
         // closing remarks (bets, dealers profit, double down results, etc.)
     }
+    console.log("end");
 })
 
 client.login(process.env.TOKEN);
@@ -351,7 +354,6 @@ function cardValue(c, soft) {
             break;
         case 'King':
             return 10;
-            break;
     }
 }
 
@@ -364,12 +366,12 @@ impliment "split" - DONE
 impliment double down - DONE
 if the dealer gets a blackjack, the hand should be over (and players with blackjack take up their bet)
 impliment dealers turn - DONE
-impliment naturals
+impliment naturalsm - DONE
 impliment dealer-ace rule (insurance) - DONE
 6 decks - DONE
 allow for multiple hands without re-activating dealer
-fix dealers soft hand bug
 fix bug occuring if all players have naturals (should skip their turn and go to the dealer)
+optional - delaer hits on soft 17
 */
 
 /*
